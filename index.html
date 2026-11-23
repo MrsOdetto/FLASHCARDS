@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sound Maze</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f6f1e7; --paper:#fffdf8; --ink:#2a2733; --muted:#6c6878; --line:#e4dccd;
+    --accent:#2f5d8a; --ok:#2e8b57; --okbg:#e3f4ea; --bad:#c8463d; --badbg:#fbe6e3;
+    --stone:#ece4d4; --stone2:#dcd1bd; --tc:#e07a2f;
+    --radius:16px;
+    --ipa:"Charis SIL","Doulos SIL","Gentium Plus","Noto Sans","Segoe UI","Lucida Sans Unicode","Arial Unicode MS",Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{font-family:Nunito,system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;
+    background-image:radial-gradient(#e9e0cf 1px,transparent 1px);background-size:22px 22px}
+  button{font:inherit;cursor:pointer}
+  .wrap{max-width:1280px;margin:0 auto;padding:18px 20px 40px}
+  header{display:flex;flex-wrap:wrap;align-items:center;gap:14px 20px;margin-bottom:14px}
+  h1{font-family:Fredoka,sans-serif;font-weight:700;font-size:clamp(26px,3.4vw,40px);margin:0}
+  h1 small{display:block;font-family:Nunito;font-weight:700;font-size:14px;color:var(--muted)}
+  .tabs{display:flex;gap:6px;background:var(--paper);padding:5px;border-radius:999px;border:1px solid var(--line);margin-left:auto}
+  .tab{border:0;background:transparent;padding:9px 16px;border-radius:999px;font-weight:800;color:var(--muted)}
+  .tab[aria-selected="true"]{background:var(--ink);color:#fff}
+  .bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;background:var(--paper);border:1px solid var(--line);
+    border-radius:var(--radius);padding:10px 14px;margin-bottom:14px}
+  .bar label{font-weight:700;color:var(--muted);font-size:14px;display:flex;align-items:center;gap:6px}
+  select{font:inherit;font-weight:700;padding:6px 8px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--ink);max-width:220px}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .seg button{border:0;background:#fff;padding:7px 12px;font-weight:800;color:var(--muted)}
+  .seg button.on{background:var(--accent);color:#fff}
+  .switch{display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px;color:var(--ink);cursor:pointer;user-select:none}
+  .switch input{width:20px;height:20px;accent-color:var(--accent)}
+  .btn{border:0;border-radius:12px;padding:9px 16px;font-weight:800;background:var(--ink);color:#fff}
+  .btn.light{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  .btn.big{font-size:18px;padding:12px 22px}
+  .spacer{flex:1}
+  .pill{background:#fff;border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:15px;font-weight:800}
+  .hidden{display:none!important}
+  .ipa{font-family:var(--ipa);font-weight:700}
+  .spk{border:0;background:#f1ece2;border-radius:10px;width:36px;height:36px;font-size:17px;display:grid;place-items:center;flex:none}
+  .spk:hover{background:#e6dfd1}
+  .spk:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(1)}
+
+  /* Mission banner */
+  .mission{display:flex;flex-wrap:wrap;align-items:center;gap:12px 18px;background:var(--paper);border:3px solid color-mix(in srgb,var(--tc) 50%,white);
+    border-radius:var(--radius);padding:12px 18px;margin-bottom:14px}
+  .mission .lbl{font-family:Fredoka;font-weight:600;font-size:clamp(20px,2.2vw,26px)}
+  .mission .sym{font-size:clamp(34px,4vw,48px);color:color-mix(in srgb,var(--tc) 85%,black);line-height:1}
+  .mission .key{font-weight:800;color:var(--muted)}
+  .mission .key b{color:var(--ink);font-size:18px}
+  .hearts{font-size:28px;letter-spacing:2px}
+  .hearts .lost{filter:grayscale(1);opacity:.3}
+  .hint{font-size:15px;color:var(--muted);font-weight:700;margin:0 0 10px 4px}
+
+  /* Maze */
+  .mazebox{background:#cfc3ac;border-radius:22px;padding:14px;box-shadow:inset 0 0 0 4px #b9ab90}
+  .maze{display:grid;gap:8px;align-items:stretch}
+  .gut{display:grid;place-items:center;font-size:24px;color:#8a7a5c;font-weight:800}
+  .gut.door{font-size:38px}
+  .gut.entry{color:var(--tc);animation:nudge 1.4s infinite}
+  .gut.entry.off{animation:none;opacity:.25}
+  @keyframes nudge{0%,100%{transform:translateX(0)}50%{transform:translateX(5px)}}
+  .cell{position:relative;background:var(--stone);border-radius:14px;min-height:clamp(70px,9vw,100px);padding:8px 6px 6px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+    box-shadow:0 4px 0 var(--stone2);transition:transform .12s, background .2s, box-shadow .2s;user-select:none}
+  .cell .w{font-weight:800;font-size:clamp(17px,1.9vw,25px);line-height:1.1;text-align:center;word-break:break-word}
+  .cell .s{font-size:16px;min-height:18px}
+  .cell .spk{width:32px;height:32px;font-size:15px;background:rgba(255,255,255,.7)}
+  .cell.can{background:#fff;cursor:pointer;box-shadow:0 0 0 3px color-mix(in srgb,var(--tc) 60%,white),0 4px 0 color-mix(in srgb,var(--tc) 60%,white)}
+  .cell.can:hover{transform:translateY(-3px)}
+  .cell.visited.can{background:color-mix(in srgb,var(--tc) 22%,white);box-shadow:0 0 0 2px color-mix(in srgb,var(--tc) 35%,white),0 4px 0 color-mix(in srgb,var(--tc) 45%,white)}
+  .cell.visited{background:color-mix(in srgb,var(--tc) 22%,white);box-shadow:0 4px 0 color-mix(in srgb,var(--tc) 45%,white)}
+  .cell.visited .s{color:color-mix(in srgb,var(--tc) 85%,black)}
+  .cell.trap{background:var(--badbg);box-shadow:0 4px 0 #efc2bc}
+  .cell.trap .w{text-decoration:line-through;text-decoration-color:rgba(200,70,61,.5)}
+  .cell.trap .s{color:var(--bad)}
+  .cell.reveal{outline:3px dashed var(--ok);outline-offset:-3px}
+  .cell.shake{animation:shake .45s}
+  @keyframes shake{0%,100%{transform:none}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+  .cell .num{position:absolute;top:5px;left:8px;font-size:12px;font-weight:800;color:color-mix(in srgb,var(--tc) 70%,black)}
+  .cell .me{position:absolute;top:-12px;right:-6px;font-size:30px;filter:drop-shadow(0 2px 2px rgba(0,0,0,.25));animation:hop .35s}
+  @keyframes hop{0%{transform:translateY(-14px) scale(.7)}100%{transform:none}}
+  .cell.done{opacity:.9}
+
+  /* Teacher */
+  .teacher{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:16px}
+  @media (max-width:820px){.teacher{grid-template-columns:1fr}}
+  .panel{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+  .panel h2{font-family:Fredoka;font-weight:600;margin:0 0 8px;font-size:22px}
+  .panel p{color:var(--muted);font-weight:600;line-height:1.5}
+  textarea{width:100%;min-height:330px;font-family:var(--ipa);font-size:17px;line-height:1.6;padding:12px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--ink);resize:vertical}
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center}
+  .preview{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .preview span{background:#fff;border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-weight:800}
+  .msg{font-weight:800;min-height:24px}.msg.ok{color:var(--ok)}.msg.bad{color:var(--bad)}
+  code{background:#fff;border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-family:var(--ipa)}
+  table.alias td{padding:3px 12px 3px 0;font-weight:700}
+
+  .overlay{position:fixed;inset:0;background:rgba(42,39,51,.55);display:grid;place-items:center;z-index:60;padding:20px}
+  .modal{background:var(--paper);border-radius:22px;padding:28px;max-width:600px;width:100%;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.3)}
+  .modal h2{font-family:Fredoka;font-size:34px;margin:0 0 6px}
+  .modal .big{font-size:22px;font-weight:800;margin:10px 0}
+  .review{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:14px 0 20px}
+  .chip{display:flex;align-items:center;gap:6px;background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:4px 4px 4px 10px;font-weight:800;font-size:18px}
+  .chip .spk{width:30px;height:30px;font-size:14px}
+  #fx{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:80}
+  .notice{background:var(--badbg);color:var(--bad);font-weight:800;padding:10px 14px;border-radius:12px;margin-bottom:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🧭 Sound Maze<small>Esci dal labirinto camminando solo sul suono giusto</small></h1>
+    <div class="tabs" role="tablist">
+      <button class="tab" data-view="maze" aria-selected="true">Labirinto</button>
+      <button class="tab" data-view="teacher" aria-selected="false">⚙️ Parole</button>
+    </div>
+  </header>
+
+  <div id="ttsNotice" class="notice hidden">Questo browser non supporta la sintesi vocale: il gioco funziona, ma senza audio. Provate con Chrome, Edge o Safari.</div>
+
+  <div class="bar">
+    <label>Livello
+      <span class="seg" id="levelSeg">
+        <button data-level="base" class="on">Base · 5 suoni</button>
+        <button data-level="adv">Avanzato · tutti e 8</button>
+      </span>
+    </label>
+    <label>Suono da seguire <select id="targetSel"></select></label>
+    <label class="switch" title="Il pulsante audio della parola si sblocca solo dopo averla scelta">
+      <input type="checkbox" id="readFirst" checked> 🗣️ Prima leggi ad alta voce
+    </label>
+    <label class="switch"><input type="checkbox" id="sfxOn" checked> 🔔 Effetti sonori</label>
+    <label>Voce <select id="voiceSel"></select></label>
+    <label>Velocità
+      <select id="rateSel"><option value="0.95">normale</option><option value="0.75" selected>lenta</option><option value="0.6">molto lenta</option></select>
+    </label>
+    <span class="spacer"></span>
+    <button class="btn light" id="fsBtn">⛶ Schermo intero</button>
+  </div>
+
+  <section id="view-maze">
+    <div class="mission" id="mission">
+      <span class="lbl">Segui il suono</span>
+      <span class="sym ipa" id="mSym">/eɪ/</span>
+      <span class="key">come in <b id="mKey">day</b></span>
+      <button class="spk" id="mSpk" title="Ascolta l'esempio">🔊</button>
+      <span class="spacer"></span>
+      <span class="hearts" id="hearts" title="Vite"></span>
+      <span class="pill" id="steps">👣 0 passi</span>
+      <button class="btn" id="newMaze">🔄 Nuovo labirinto</button>
+    </div>
+    <p class="hint" id="hint">Entra da sinistra ➜ e arriva alla porta 🚪. Puoi muoverti su, giù, a destra e a sinistra, solo sulle caselle illuminate. Leggi le parole ad alta voce e scegli quella con il suono giusto. Attenzione alle trappole!</p>
+    <div class="mazebox"><div class="maze" id="maze"></div></div>
+  </section>
+
+  <section id="view-teacher" class="hidden">
+    <div class="teacher">
+      <div class="panel">
+        <h2>Le parole del labirinto</h2>
+        <p>Una riga per ogni dittongo: simbolo, due punti, parole separate da virgole. Ogni suono deve avere almeno 6 parole per poter essere il "suono da seguire".</p>
+        <textarea id="wordsTa" spellcheck="false"></textarea>
+        <div class="row">
+          <button class="btn" id="saveWords">💾 Salva e usa</button>
+          <button class="btn light" id="resetWords">↩ Ripristina parole di esempio</button>
+          <span class="msg" id="wordsMsg"></span>
+        </div>
+        <div class="preview" id="preview"></div>
+      </div>
+      <div class="panel">
+        <h2>Scrivere i simboli</h2>
+        <p>Si possono usare queste abbreviazioni, che vengono convertite da sole:</p>
+        <table class="alias">
+          <tr><td><code>ei</code> → <span class="ipa">eɪ</span></td><td><code>ai</code> → <span class="ipa">aɪ</span></td><td><code>oi</code> → <span class="ipa">ɔɪ</span></td></tr>
+          <tr><td><code>au</code> → <span class="ipa">aʊ</span></td><td><code>ou</code> → <span class="ipa">əʊ</span></td><td><code>ia</code> → <span class="ipa">ɪə</span></td></tr>
+          <tr><td><code>ea</code> → <span class="ipa">eə</span></td><td><code>ua</code> → <span class="ipa">ʊə</span></td><td></td></tr>
+        </table>
+        <h2 style="margin-top:16px">Come funziona</h2>
+        <p>Ogni labirinto è diverso: il percorso viene creato a caso e solo le sue caselle contengono il suono da seguire. Tutte le altre sono trappole con gli altri dittonghi. Con 3 trappole si perde e il percorso viene mostrato.</p>
+        <p>Le parole salvate restano solo in questo browser.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<canvas id="fx" aria-hidden="true"></canvas>
+<div class="overlay hidden" id="overlay"><div class="modal" id="modal"></div></div>
+
+<script>
+(function(){
+  "use strict";
+  var DEFAULT_TEXT=[
+    "eɪ: rain, eight, they, great, play, cake, train, day, grey, steak",
+    "aɪ: time, fly, high, eye, buy, night, bike, my, light, pie",
+    "ɔɪ: boy, coin, toy, noise, enjoy, voice, oil, point",
+    "aʊ: now, house, cow, mouth, brown, town, out, loud",
+    "əʊ: boat, snow, phone, go, road, know, home, toe, though",
+    "ɪə: ear, here, beer, near, deer, clear",
+    "eə: hair, chair, where, bear, care, there, pear",
+    "ʊə: tour, cure, pure, tourist, during, Europe, jury"
+  ].join("\n");
+  var ALIAS={ei:"eɪ",ai:"aɪ",oi:"ɔɪ","ɔi":"ɔɪ",au:"aʊ",ou:"əʊ","əu":"əʊ",eu:"əʊ",ia:"ɪə","iə":"ɪə",ea:"eə",ua:"ʊə","uə":"ʊə"};
+  var KEY={"eɪ":"day","aɪ":"my","ɔɪ":"boy","aʊ":"now","əʊ":"go","ɪə":"ear","eə":"hair","ʊə":"tour"};
+  var BASE=["eɪ","aɪ","ɔɪ","aʊ","əʊ"];
+  var PALETTE=["#e07a2f","#3b82c4","#8e5bc7","#2f9e6e","#d4476b","#b88a12","#1f9aa8","#6b7a2f","#a0522d","#5468d4"];
+  var STORE="sound-maze-words";
+  var ROWS=5,COLS=6,LIVES=3,MINLEN=6;
+
+  var $=function(id){return document.getElementById(id);};
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+  function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}return a;}
+  function pick(a){return a[Math.floor(Math.random()*a.length)];}
+  function normSym(s){s=s.trim().replace(/^\/+|\/+$/g,"").trim();return ALIAS[s.toLowerCase()]||s;}
+  function parse(text){
+    var groups=[],errors=[],seen={};
+    text.split(/\r?\n/).forEach(function(line,i){
+      if(!line.trim())return;
+      var idx=line.indexOf(":");
+      if(idx<0){errors.push("Riga "+(i+1)+": manca «:»");return;}
+      var sym=normSym(line.slice(0,idx));if(!sym){errors.push("Riga "+(i+1)+": manca il simbolo");return;}
+      var g=groups.find(function(x){return x.sym===sym;});if(!g){g={sym:sym,words:[]};groups.push(g);}
+      line.slice(idx+1).split(/[,;]/).map(function(w){return w.trim();}).filter(Boolean).forEach(function(w){
+        var k=w.toLowerCase();if(seen[k]){if(seen[k]!==sym)errors.push("«"+w+"» compare in due suoni");return;}seen[k]=sym;g.words.push(w);
+      });
+    });
+    return {groups:groups.filter(function(g){return g.words.length;}),errors:errors};
+  }
+
+  var state={groups:[],level:"base",readFirst:true,target:"random"};
+  var txt=DEFAULT_TEXT;try{var sv=localStorage.getItem(STORE);if(sv)txt=sv;}catch(e){}
+  state.groups=parse(txt).groups;if(state.groups.length<2)state.groups=parse(DEFAULT_TEXT).groups;
+
+  function colorOf(sym){var i=state.groups.findIndex(function(g){return g.sym===sym;});return PALETTE[(i<0?0:i)%PALETTE.length];}
+  function keyOf(g){return KEY[g.sym]||g.words[0];}
+  function active(){
+    if(state.level==="base"){var b=state.groups.filter(function(g){return BASE.indexOf(g.sym)>=0;});if(b.length>=2)return b;}
+    return state.groups;
+  }
+  function targetable(){return active().filter(function(g){return g.words.length>=MINLEN;});}
+
+  /* ---------- Speech ---------- */
+  var hasTTS="speechSynthesis" in window&&typeof SpeechSynthesisUtterance!=="undefined",voices=[];
+  function loadVoices(){
+    var all=[];if(hasTTS){try{all=speechSynthesis.getVoices();}catch(e){}}
+    voices=all.filter(function(v){return /^en([-_]|$)/i.test(v.lang);});
+    voices.sort(function(a,b){var r=function(v){return /GB/i.test(v.lang)?0:/US/i.test(v.lang)?1:2;};return r(a)-r(b);});
+    var sel=$("voiceSel"),prev=sel.value;sel.innerHTML="";
+    if(!voices.length){sel.innerHTML='<option value="">Inglese (predefinita)</option>';return;}
+    voices.forEach(function(v){var o=document.createElement("option");o.value=v.voiceURI;
+      var f=/GB/i.test(v.lang)?"🇬🇧":/US/i.test(v.lang)?"🇺🇸":/AU/i.test(v.lang)?"🇦🇺":"🌐";
+      o.textContent=f+" "+v.name.replace(/Microsoft |Google |Online \(Natural\)| - English.*$/g,"").slice(0,28);sel.appendChild(o);});
+    if(prev&&voices.some(function(v){return v.voiceURI===prev;}))sel.value=prev;
+  }
+  function speak(t){
+    if(!hasTTS)return;
+    try{speechSynthesis.cancel();var u=new SpeechSynthesisUtterance(t);
+      var v=voices.find(function(x){return x.voiceURI===$("voiceSel").value;});
+      if(v){u.voice=v;u.lang=v.lang;}else u.lang="en-GB";
+      u.rate=parseFloat($("rateSel").value)||0.8;speechSynthesis.speak(u);}catch(e){}
+  }
+  if(hasTTS){loadVoices();try{speechSynthesis.onvoiceschanged=loadVoices;}catch(e){}setTimeout(loadVoices,500);}
+  else{$("ttsNotice").classList.remove("hidden");loadVoices();}
+
+  /* ---------- Sound effects ---------- */
+  var sfxOn=true;try{if(localStorage.getItem(STORE+"-sfx")==="0")sfxOn=false;}catch(e){}
+  $("sfxOn").checked=sfxOn;
+  var actx=null;
+  function ac(){if(!sfxOn)return null;try{if(!actx){var C=window.AudioContext||window.webkitAudioContext;if(!C)return null;actx=new C();}if(actx.state==="suspended")actx.resume();}catch(e){return null;}return actx;}
+  function tone(f,st,d,type,vol,to){var c=ac();if(!c)return;try{var t=c.currentTime+st,o=c.createOscillator(),g=c.createGain();
+    o.type=type||"sine";o.frequency.setValueAtTime(f,t);if(to)o.frequency.exponentialRampToValueAtTime(to,t+d);
+    g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(vol||0.15,t+0.015);g.gain.exponentialRampToValueAtTime(0.0001,t+d);
+    o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+d+0.05);}catch(e){}}
+  var SFX={
+    step:function(){tone(523,0,0.1,"triangle",0.14);tone(784,0.08,0.18,"triangle",0.14);},
+    wrong:function(){tone(220,0,0.28,"square",0.06,130);tone(165,0.12,0.3,"square",0.045,110);},
+    lose:function(){[392,330,262,196].forEach(function(f,i){tone(f,i*0.18,0.3,"triangle",0.13);});},
+    win:function(){[523,659,784,659,784,1047].forEach(function(f,i){tone(f,i*0.13,i===5?0.7:0.18,"triangle",0.15);});tone(262,0.65,0.7,"sine",0.1);tone(392,0.65,0.7,"sine",0.08);}
+  };
+  function sfx(n){if(sfxOn&&SFX[n])SFX[n]();}
+  $("sfxOn").addEventListener("change",function(){sfxOn=this.checked;try{localStorage.setItem(STORE+"-sfx",sfxOn?"1":"0");}catch(e){}if(sfxOn)sfx("step");});
+
+  /* ---------- Confetti ---------- */
+  var fx=$("fx"),fxc=fx.getContext("2d"),parts=[],raf=null,reduce=false;
+  try{reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;}catch(e){}
+  function sizeFx(){var d=window.devicePixelRatio||1;fx.width=innerWidth*d;fx.height=innerHeight*d;fxc.setTransform(d,0,0,d,0,0);}
+  sizeFx();addEventListener("resize",sizeFx);
+  var CCOL=["#e07a2f","#3b82c4","#8e5bc7","#2f9e6e","#d4476b","#f2c230","#1f9aa8"];
+  function confetti(x,y,n,p){if(reduce)n=Math.max(4,Math.round(n/4));
+    for(var i=0;i<n;i++){var a=-Math.PI/2+(Math.random()-0.5)*Math.PI*1.1,s=(p||9)*(0.5+Math.random());
+      parts.push({x:x,y:y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,r:Math.random()*6.28,vr:(Math.random()-0.5)*0.3,w:7+Math.random()*6,h:5+Math.random()*5,c:pick(CCOL),life:0,round:Math.random()<0.25});}
+    if(!raf)raf=requestAnimationFrame(tick);}
+  function tick(){fxc.clearRect(0,0,innerWidth,innerHeight);
+    parts=parts.filter(function(p){return p.y<innerHeight+40&&p.life<420;});
+    parts.forEach(function(p){p.life++;p.vy+=0.25;p.vx*=0.985;p.vy*=0.985;p.x+=p.vx;p.y+=p.vy;p.r+=p.vr;
+      fxc.save();fxc.translate(p.x,p.y);fxc.rotate(p.r);fxc.fillStyle=p.c;
+      if(p.round){fxc.beginPath();fxc.arc(0,0,p.h/2,0,6.283);fxc.fill();}else{var sc=Math.abs(Math.cos(p.life*0.15))+0.1;fxc.fillRect(-p.w/2,-p.h*sc/2,p.w,p.h*sc);}
+      fxc.restore();});
+    if(parts.length)raf=requestAnimationFrame(tick);else{raf=null;fxc.clearRect(0,0,innerWidth,innerHeight);}}
+  function burstAt(el,n,p){if(!el)return;var r=el.getBoundingClientRect();confetti(r.left+r.width/2,r.top+r.height/3,n,p);}
+  function bigParty(){confetti(innerWidth*0.15,innerHeight*0.95,100,17);confetti(innerWidth*0.85,innerHeight*0.95,100,17);setTimeout(function(){confetti(innerWidth/2,innerHeight*0.7,130,15);},380);}
+
+  function spkBtn(w,locked){return '<button class="spk" data-say="'+esc(w)+'"'+(locked?' disabled title="Prima leggila tu!"':' title="Ascolta"')+'>'+(locked?'🔒':'🔊')+'</button>';}
+  document.addEventListener("click",function(e){var b=e.target.closest(".spk");if(b&&!b.disabled&&b.hasAttribute("data-say")){e.stopPropagation();speak(b.getAttribute("data-say"));}},true);
+
+  /* ---------- Maze generation ---------- */
+  function genPath(maxLen){
+    var best=null;
+    for(var t=0;t<800;t++){
+      var r0=Math.floor(Math.random()*ROWS),path=[[r0,0]],seen={};seen[r0+",0"]=1;var ok=true;
+      while(path[path.length-1][1]<COLS-1){
+        var cur=path[path.length-1],opts=[];
+        [[0,1,2],[1,0,1.6],[-1,0,1.6]].forEach(function(d){
+          var nr=cur[0]+d[0],nc=cur[1]+d[1];
+          if(nr<0||nr>=ROWS||nc<0||nc>=COLS||seen[nr+","+nc])return;
+          var touch=[[1,0],[-1,0],[0,1],[0,-1]].some(function(e){var ar=nr+e[0],acn=nc+e[1];return seen[ar+","+acn]&&!(ar===cur[0]&&acn===cur[1]);});
+          if(touch)return;
+          opts.push({r:nr,c:nc,w:d[2]});
+        });
+        if(!opts.length){ok=false;break;}
+        var tot=opts.reduce(function(s,o){return s+o.w;},0),x=Math.random()*tot,ch=opts[0];
+        for(var i=0;i<opts.length;i++){x-=opts[i].w;if(x<=0){ch=opts[i];break;}}
+        path.push([ch.r,ch.c]);seen[ch.r+","+ch.c]=1;
+      }
+      if(!ok||path.length>maxLen)continue;
+      if(path.length>=Math.min(maxLen,COLS+3))return path;
+      if(!best||path.length>best.length)best=path;
+    }
+    if(best)return best;
+    var r=Math.floor(Math.random()*ROWS),p=[];for(var c=0;c<COLS;c++)p.push([r,c]);return p;
+  }
+
+  var game=null;
+  function newMaze(){
+    var tg=targetable();
+    if(!tg.length||active().length<2){$("maze").innerHTML='<p style="padding:20px;font-weight:800">Servono almeno due suoni, e uno con almeno '+MINLEN+' parole. Controllate la scheda ⚙️ Parole.</p>';return;}
+    var T=(state.target!=="random"&&tg.find(function(g){return g.sym===state.target;}))||pick(tg);
+    var path=genPath(Math.min(T.words.length,COLS+6));
+    var tw=shuffle(T.words);
+    var grid=[];for(var r=0;r<ROWS;r++){grid.push([]);for(var c=0;c<COLS;c++)grid[r].push(null);}
+    path.forEach(function(p,i){grid[p[0]][p[1]]={w:tw[i%tw.length],sym:T.sym,path:i,state:""};});
+    var others=active().filter(function(g){return g!==T;});
+    var pool=[];others.forEach(function(g){g.words.forEach(function(w){pool.push({w:w,sym:g.sym});});});
+    pool=shuffle(pool);var pi=0;
+    for(r=0;r<ROWS;r++)for(c=0;c<COLS;c++){
+      if(grid[r][c])continue;
+      if(pi>=pool.length){pool=shuffle(pool);pi=0;}
+      var d=pool[pi++];grid[r][c]={w:d.w,sym:d.sym,path:-1,state:""};
+    }
+    var end=path[path.length-1];
+    game={T:T,grid:grid,path:path,pos:null,lives:LIVES,steps:0,traps:[],walked:[],over:false,exitRow:end[0]};
+    document.documentElement.style.setProperty("--tc",colorOf(T.sym));
+    $("mSym").textContent="/"+T.sym+"/";$("mKey").textContent=keyOf(T);$("mSpk").setAttribute("data-say",keyOf(T));
+    render();
+  }
+  function canMove(r,c){
+    if(!game||game.over)return false;
+    var cell=game.grid[r][c];if(cell.state==="trap")return false;
+    if(!game.pos)return c===0&&!cell.state;
+    return Math.abs(game.pos[0]-r)+Math.abs(game.pos[1]-c)===1;
+  }
+  function render(){
+    var m=$("maze");
+    m.style.gridTemplateColumns="34px repeat("+COLS+",minmax(0,1fr)) 46px";
+    var h="";
+    for(var r=0;r<ROWS;r++){
+      h+='<div class="gut entry'+(game.pos?' off':'')+'">➜</div>';
+      for(var c=0;c<COLS;c++){
+        var cell=game.grid[r][c],cls="cell",can=canMove(r,c);
+        if(cell.state==="visited")cls+=" visited";
+        if(cell.state==="trap")cls+=" trap";
+        if(cell.reveal)cls+=" reveal";
+        if(can)cls+=" can";
+        var here=game.pos&&game.pos[0]===r&&game.pos[1]===c;
+        var showSym=cell.state||game.over;
+        var locked=state.readFirst&&!cell.state&&!game.over;
+        h+='<div class="'+cls+'" data-r="'+r+'" data-c="'+c+'">'+
+          (cell.state==="visited"?'<span class="num">'+cell.step+'</span>':'')+
+          (here?'<span class="me">🕵️</span>':'')+
+          '<span class="w">'+esc(cell.w)+'</span>'+spkBtn(cell.w,locked)+
+          '<span class="s ipa" style="'+(showSym?'':'visibility:hidden')+'">/'+esc(cell.sym)+'/</span></div>';
+      }
+      h+='<div class="gut'+(r===game.exitRow?' door':'')+'">'+(r===game.exitRow?'🚪':'')+'</div>';
+    }
+    m.innerHTML=h;
+    var hs="";for(var i=0;i<LIVES;i++)hs+='<span class="'+(i<game.lives?'':'lost')+'">❤️</span>';
+    $("hearts").innerHTML=hs;
+    $("steps").textContent="👣 "+game.steps+(game.steps===1?" passo":" passi");
+  }
+  function cellEl(r,c){return document.querySelector('.cell[data-r="'+r+'"][data-c="'+c+'"]');}
+  $("maze").addEventListener("click",function(e){
+    if(e.target.closest(".spk"))return;
+    var el=e.target.closest(".cell");if(!el||!game)return;
+    var r=+el.getAttribute("data-r"),c=+el.getAttribute("data-c");
+    if(!canMove(r,c))return;
+    var cell=game.grid[r][c];
+    if(cell.state==="visited"){game.pos=[r,c];render();return;}
+    if(cell.sym===game.T.sym){
+      game.steps++;cell.state="visited";cell.step=game.steps;game.pos=[r,c];game.walked.push(cell);
+      render();
+      var won=c===COLS-1;
+      sfx(won?"win":"step");
+      burstAt(cellEl(r,c),won?30:12,won?10:6);
+      setTimeout(function(){speak(cell.w);},260);
+      if(won){game.over=true;setTimeout(function(){render();bigParty();endModal(true);},900);}
+    }else{
+      cell.state="trap";game.lives--;game.traps.push(cell);
+      sfx("wrong");render();
+      var ne=cellEl(r,c);if(ne){ne.classList.add("shake");}
+      setTimeout(function(){speak(cell.w);},300);
+      if(game.lives<=0){
+        game.over=true;
+        game.path.forEach(function(p){var pc=game.grid[p[0]][p[1]];if(!pc.state)pc.reveal=true;});
+        setTimeout(function(){sfx("lose");render();endModal(false);},900);
+      }
+    }
+  });
+  function endModal(won){
+    var h=won?'<h2>Sei uscito dal labirinto! 🕵️🚪</h2><div class="big">'+game.steps+' passi · '+game.traps.length+(game.traps.length===1?' trappola':' trappole')+'</div>'
+             :'<h2>Caduto in trappola! 🪤</h2><div class="big">Il percorso giusto ora è segnato nel labirinto.</div>';
+    var pathWords=game.path.map(function(p){return game.grid[p[0]][p[1]];});
+    h+='<p style="font-weight:700;color:var(--muted)">Rileggete insieme il percorso, tutte parole con <span class="ipa">/'+esc(game.T.sym)+'/</span>:</p><div class="review">'+
+      pathWords.map(function(x){return '<div class="chip">'+esc(x.w)+spkBtn(x.w,false)+'</div>';}).join("")+'</div>';
+    if(game.traps.length){
+      h+='<p style="font-weight:700;color:var(--muted)">Le trappole in cui siete caduti:</p><div class="review">'+
+        game.traps.map(function(x){return '<div class="chip">'+esc(x.w)+' <span class="ipa" style="color:'+colorOf(x.sym)+'">/'+esc(x.sym)+'/</span>'+spkBtn(x.w,false)+'</div>';}).join("")+'</div>';
+    }
+    h+='<button class="btn big" data-close="new">🔄 Nuovo labirinto</button> <button class="btn big light" data-close="x">Guarda il labirinto</button>';
+    $("modal").innerHTML=h;$("overlay").classList.remove("hidden");
+  }
+  $("overlay").addEventListener("click",function(e){
+    var b=e.target.closest("[data-close]");if(!b&&e.target!==$("overlay"))return;
+    $("overlay").classList.add("hidden");if(b&&b.getAttribute("data-close")==="new")newMaze();
+  });
+  $("newMaze").addEventListener("click",newMaze);
+
+  /* ---------- Controls ---------- */
+  function fillTargets(){
+    var sel=$("targetSel"),prev=state.target;
+    sel.innerHTML='<option value="random">🎲 a caso</option>'+targetable().map(function(g){return '<option value="'+esc(g.sym)+'">/'+esc(g.sym)+'/ come in '+esc(keyOf(g))+'</option>';}).join("");
+    if(Array.prototype.some.call(sel.options,function(o){return o.value===prev;}))sel.value=prev;else{sel.value="random";state.target="random";}
+  }
+  $("targetSel").addEventListener("change",function(){state.target=this.value;newMaze();});
+  Array.prototype.forEach.call(document.querySelectorAll("#levelSeg button"),function(b){
+    b.addEventListener("click",function(){
+      state.level=b.getAttribute("data-level");
+      Array.prototype.forEach.call(document.querySelectorAll("#levelSeg button"),function(x){x.classList.toggle("on",x===b);});
+      fillTargets();newMaze();
+    });
+  });
+  $("readFirst").addEventListener("change",function(){state.readFirst=this.checked;if(game)render();});
+  $("fsBtn").addEventListener("click",function(){try{if(document.fullscreenElement)document.exitFullscreen();else{var p=document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();if(p&&p.catch)p.catch(function(){});}}catch(e){}});
+  Array.prototype.forEach.call(document.querySelectorAll(".tab"),function(t){
+    t.addEventListener("click",function(){
+      var v=t.getAttribute("data-view");
+      Array.prototype.forEach.call(document.querySelectorAll(".tab"),function(x){x.setAttribute("aria-selected",x===t?"true":"false");});
+      ["maze","teacher"].forEach(function(n){$("view-"+n).classList.toggle("hidden",n!==v);});
+    });
+  });
+
+  /* ---------- Teacher ---------- */
+  function canon(gs){return gs.map(function(g){return g.sym+": "+g.words.join(", ");}).join("\n");}
+  function renderPreview(gs){$("preview").innerHTML=gs.map(function(g){return '<span><span class="ipa" style="color:'+colorOf(g.sym)+'">/'+esc(g.sym)+'/</span> · '+g.words.length+' parole'+(g.words.length<MINLEN?' ⚠️':'')+'</span>';}).join("");}
+  $("wordsTa").value=canon(state.groups);renderPreview(state.groups);
+  $("wordsTa").addEventListener("input",function(){renderPreview(parse($("wordsTa").value).groups);});
+  $("saveWords").addEventListener("click",function(){
+    var r=parse($("wordsTa").value),m=$("wordsMsg");
+    if(r.groups.length<2){m.className="msg bad";m.textContent="Servono almeno due suoni con delle parole.";return;}
+    state.groups=r.groups;var t=canon(r.groups);$("wordsTa").value=t;renderPreview(r.groups);
+    try{localStorage.setItem(STORE,t);}catch(e){}
+    var few=r.groups.filter(function(g){return g.words.length<MINLEN;}).map(function(g){return "/"+g.sym+"/";});
+    var notes=r.errors.slice(0,3);if(few.length)notes.push(few.join(" ")+" hanno meno di "+MINLEN+" parole: compariranno solo come trappole");
+    m.className="msg "+(notes.length?"bad":"ok");m.textContent=notes.length?"Salvato. Nota: "+notes.join(" · "):"✔ Salvato! I labirinti useranno queste parole.";
+    fillTargets();newMaze();
+  });
+  $("resetWords").addEventListener("click",function(){$("wordsTa").value=DEFAULT_TEXT;renderPreview(parse(DEFAULT_TEXT).groups);$("wordsMsg").className="msg";$("wordsMsg").textContent="Premi «Salva e usa» per confermare.";});
+
+  fillTargets();newMaze();
+})();
+</script>
+</body>
+</html>
